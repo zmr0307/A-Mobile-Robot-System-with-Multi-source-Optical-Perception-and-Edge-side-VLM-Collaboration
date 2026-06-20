@@ -1,0 +1,8 @@
+<library path="wl100_clearance_planner">
+  <class
+    name="wl100_clearance_planner/ClearanceAStarPlanner"
+    type="wl100_clearance_planner::ClearanceAStarPlanner"
+    base_class_type="nav2_core::GlobalPlanner">
+    <description>Clearance-aware 8-connected A* global planner for WL100.</description>
+  </class>
+</library>

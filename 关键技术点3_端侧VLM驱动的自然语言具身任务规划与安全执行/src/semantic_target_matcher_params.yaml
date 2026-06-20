@@ -1,0 +1,42 @@
+# WL100 通用语义目标匹配节点参数
+
+semantic_target_matcher:
+  ros__parameters:
+    request_topic: "/demo/target_match_request"
+    result_topic: "/demo/target_match_result"
+    image_topic: "/camera/camera/color/image_raw"
+    yolo_topic: "/yolo/detections"
+
+    vlm_api_url: "http://localhost:8080/v1/chat/completions"
+    vlm_timeout: 45.0
+    temperature: 0.1
+    max_tokens: 1024
+
+    image_jpeg_quality: 85
+    yolo_freshness_sec: 1.5
+    candidate_min_score: 0.3
+    candidate_class_names:
+      - "person"
+      - "人"
+      - "cardboard box"
+      - "纸箱"
+      - "箱子"
+      - "chair"
+      - "椅子"
+      - "table"
+      - "桌子"
+      - "door"
+      - "门"
+      - "bag"
+      - "包"
+      - "backpack"
+      - "背包"
+      - "phone"
+      - "手机"
+    person_min_score: 0.3
+    person_class_names: ["person", "人"]
+    max_candidates: 5
+    match_min_confidence: 0.45
+
+    save_debug_image: true
+    log_dir: "/home/nvidia/robot_ws/logs/target_match"

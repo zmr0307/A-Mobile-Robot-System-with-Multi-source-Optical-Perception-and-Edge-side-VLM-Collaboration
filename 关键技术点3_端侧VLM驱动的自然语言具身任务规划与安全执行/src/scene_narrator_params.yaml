@@ -1,0 +1,26 @@
+# WL100 场景解说节点参数
+# 用法：ros2 run wl100_demo scene_narrator_node --ros-args --params-file <此文件>
+
+scene_narrator:
+  ros__parameters:
+    # ── llama-server API ──
+    vlm_api_url: "http://localhost:8080/v1/chat/completions"
+    vlm_timeout: 30.0           # HTTP 超时秒数
+
+    # ── 输入/输出话题 ──
+    request_topic: "/demo/narrate_request"        # 触发 (std_msgs/String, JSON)
+    result_topic: "/demo/narration_result"        # 输出 (std_msgs/String, JSON)
+    image_topic: "/camera/camera/color/image_raw"
+    yolo_topic: "/yolo/detections"
+
+    # ── 关键帧落盘 ──
+    log_dir: "/home/nvidia/robot_ws/logs"         # 关键帧保存根目录
+    save_keyframe: true
+    image_jpeg_quality: 80
+
+    # ── 推理参数 ──
+    temperature: 0.2
+    max_tokens: 2048
+
+    # ── YOLO 缓存 ──
+    yolo_freshness_sec: 1.0     # YOLO 检测的有效期（秒），超过这段时间则视作 "无检测"

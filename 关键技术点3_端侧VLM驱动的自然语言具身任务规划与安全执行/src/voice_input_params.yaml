@@ -1,0 +1,23 @@
+/voice_input:
+  ros__parameters:
+    # SenseVoice ONNX 模型（首次部署位置）
+    model_dir: "/home/nvidia/asr_models/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17"
+    model_file: "model.int8.onnx"      # int8 量化版（229MB，推理 0.5s）
+    tokens_file: "tokens.txt"
+
+    # 推理设置
+    language: "auto"                    # auto / zh / en / ja / ko / yue
+    use_itn: true                       # 逆文本归一化（"二零二六" → "2026"）
+    num_threads: 4                      # ONNX 线程数
+
+    # 录音设置
+    sample_rate: 16000                  # SenseVoice 强制 16kHz
+    input_device: ""                    # "" → pulseaudio default(NoMachine 转发的 nx_remapped_out)
+    max_record_sec: 30.0                # 最长录音 30 秒，防卡死
+    min_record_sec: 0.3                 # 短于此跳过推理
+    rms_window_sec: 0.1                 # RMS 计算窗口（音量条平滑度）
+
+    # ROS 话题
+    control_topic: "/demo/voice/control"
+    state_topic: "/demo/voice/state"
+    transcript_topic: "/demo/voice/transcript"

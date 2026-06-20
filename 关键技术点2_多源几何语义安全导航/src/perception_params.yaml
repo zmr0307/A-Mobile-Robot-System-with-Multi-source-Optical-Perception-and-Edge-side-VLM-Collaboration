@@ -1,0 +1,54 @@
+# WL100 YOLOE-26 TensorRT C++ 感知节点参数配置
+# 硬件：Jetson Orin NX 16GB + D435i (640×480) + YOLOE-26 Small TRT FP16
+# 与 Python 版共享相同参数格式
+
+yolo_detector:
+  ros__parameters:
+    # ── YOLOE-26 TensorRT 引擎（ultralytics 导出格式）──
+    model_path: "/home/nvidia/yoloe26-s-seg.engine"
+
+    # ── 检测类别（引擎 metadata 会自动覆盖此列表）──
+    class_names:
+      - "person"
+      - "chair"
+      - "table"
+      - "shelf"
+      - "door"
+      - "cardboard box"
+      - "trash can"
+      - "robot"
+      - "potted plant"
+      - "blackboard"
+      - "cable"
+      - "power strip"
+      - "electric cord"
+      - "plug"
+
+    # ── 当前实验导航白名单 ──
+    # 说明：
+    #   - 上面 class_names 是模型类别空间（YOLOE-26 可识别 14 类）
+    #   - 下面 publish_classes 才是当前实验导航链路真正发布到 /yolo/detections 的类别
+    #   - 为避免操作者 person 干扰，并聚焦低矮障碍实验，当前仅启用 chair + cardboard box
+    publish_classes:
+      - "chair"
+      - "cardboard box"
+
+    # ── 推理参数 ──
+    confidence_threshold: 0.4
+    inference_rate: 5.0         # 匹配 costmap 更新频率，减少 GPU 负载
+    input_image_size: 640
+
+    # ── 深度参数 ──
+    depth_min: 0.2
+    depth_max: 8.0
+    depth_roi_ratio: 0.5
+    distance_lowpass_alpha: 0.2
+
+    # ── 话题名 ──
+    rgb_topic: "/camera/camera/color/image_raw"
+    depth_topic: "/camera/camera/aligned_depth_to_color/image_raw"
+    detection_topic: "/yolo/detections"
+    annotated_image_topic: "/yolo/annotated_image"
+
+    # ── 性能统计 ──
+    stats_interval: 10.0

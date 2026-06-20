@@ -1,0 +1,432 @@
+# ================================================================
+# Nav2 参数配置 — WL100 全向底盘专用
+# ================================================================
+# 定位：hdl_localization（外部，不启动 AMCL）
+# 全局规划：SmacPlanner2D（Cost-Aware A*，5cm 分辨率，allow_unknown=false）
+# 局部控制：MPPI（Omni 运动模型，支持横移）
+# 代价地图：全局用静态栅格 + 局部用实时 3D 点云
+# ================================================================
+
+# ----------------------------------------------------------------
+# 行为树导航器
+# ----------------------------------------------------------------
+bt_navigator:
+  ros__parameters:
+    global_frame: map
+    robot_base_frame: base_link
+    odom_topic: /odom
+    bt_loop_duration: 10
+    default_server_timeout: 20
+    wait_for_service_timeout: 5
+    action_server_result_timeout: 900.0
+    navigators: ["navigate_to_pose", "navigate_through_poses"]
+    default_nav_to_pose_bt_xml: "/home/nvidia/robot_ws/src/wl100_bringup/config/nav2_bt.xml"
+    navigate_to_pose:
+      plugin: "nav2_bt_navigator/NavigateToPoseNavigator"
+    navigate_through_poses:
+      plugin: "nav2_bt_navigator/NavigateThroughPosesNavigator"
+    plugin_lib_names:
+      - nav2_compute_path_to_pose_action_bt_node
+      - nav2_compute_path_through_poses_action_bt_node
+      - nav2_smooth_path_action_bt_node
+      - nav2_follow_path_action_bt_node
+      - nav2_spin_action_bt_node
+      - nav2_wait_action_bt_node
+      - nav2_back_up_action_bt_node
+      - nav2_drive_on_heading_bt_node
+      - nav2_clear_costmap_service_bt_node
+      - nav2_is_stuck_condition_bt_node
+      - nav2_goal_reached_condition_bt_node
+      - nav2_goal_updated_condition_bt_node
+      - nav2_globally_updated_goal_condition_bt_node
+      - nav2_is_path_valid_condition_bt_node
+      - nav2_rate_controller_bt_node
+      - nav2_distance_controller_bt_node
+      - nav2_speed_controller_bt_node
+      - nav2_truncate_path_action_bt_node
+      - nav2_truncate_path_local_action_bt_node
+      - nav2_goal_updater_node_bt_node
+      - nav2_recovery_node_bt_node
+      - nav2_pipeline_sequence_bt_node
+      - nav2_round_robin_node_bt_node
+      - nav2_transform_available_condition_bt_node
+      - nav2_time_expired_condition_bt_node
+      - nav2_path_expiring_timer_condition
+      - nav2_distance_traveled_condition_bt_node
+      - nav2_single_trigger_bt_node
+      - nav2_goal_updated_controller_bt_node
+      - nav2_navigate_through_poses_action_bt_node
+      - nav2_navigate_to_pose_action_bt_node
+      - nav2_remove_passed_goals_action_bt_node
+      - nav2_planner_selector_bt_node
+      - nav2_controller_selector_bt_node
+      - nav2_goal_checker_selector_bt_node
+      - nav2_controller_cancel_bt_node
+      - nav2_path_longer_on_approach_bt_node
+      - nav2_wait_cancel_bt_node
+      - nav2_spin_cancel_bt_node
+      - nav2_back_up_cancel_bt_node
+      - nav2_drive_on_heading_cancel_bt_node
+
+# ----------------------------------------------------------------
+# 局部控制器 — MPPI (全向模式)
+# ----------------------------------------------------------------
+controller_server:
+  ros__parameters:
+    controller_frequency: 4.0                      # 4Hz 控制频率
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.001
+    min_theta_velocity_threshold: 0.001
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]
+
+    # 进度检测：10秒内未移动0.01m则判定卡死
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.01
+      movement_time_allowance: 10.0                  # 10秒内未移动0.01m则判定卡死
+
+    # 到达目标判定：位置误差10cm、航向误差0.25rad内
+    general_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      xy_goal_tolerance: 0.10
+      yaw_goal_tolerance: 0.25
+      stateful: True
+
+    # MPPI 控制器 — 全向运动模型
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
+      motion_model: "Omni"                    # 全向底盘必须设为 Omni
+      time_steps: 30                               # 30 × 0.25s = 7.5s 预测时域
+      model_dt: 0.25                               # 匹配 controller 周期 (1/4Hz = 0.25s)
+      batch_size: 1000                             # 大采样数提升避障规划细腻度
+      iteration_count: 1
+      temperature: 0.3
+      gamma: 0.015
+      visualize: false
+      regenerate_noises: true
+      transform_tolerance: 2.5               # 允许 TF 延迟 2.5s（hdl 高负载时可达 1s）
+
+      # 速度限制 — 严格对齐 serial_node 的限幅
+      vx_max: 0.2
+      vy_max: 0.2
+      vx_min: -0.2
+      wz_max: 0.2
+
+      # 采样噪声标准差 (恢复到开放范围，释放MPPI的探索避障潜力)
+      vx_std: 0.15
+      vy_std: 0.02
+      wz_std: 0.15
+
+      # 评价函数（Critics）
+      critics: [
+        "ConstraintCritic",
+        "ObstaclesCritic",
+        "GoalCritic",
+        "GoalAngleCritic",
+        "PathAlignCritic",
+        "PathFollowCritic",
+        "PathAngleCritic"
+      ]
+
+      ConstraintCritic:
+        enabled: true
+        cost_weight: 4.0
+        cost_power: 1
+      ObstaclesCritic:
+        enabled: true
+        repulsion_weight: 1.5                # 一般避障权重
+        critical_weight: 20.0                 # 近碰撞严重惩罚权重
+        cost_power: 1
+        consider_footprint: true              # 使用矩形碰撞体而非圆形
+        collision_cost: 10000.0
+        collision_margin_distance: 0.15       # 碰撞安全边距 15cm，减少误判碰撞
+        near_goal_distance: 0.5
+        cost_scaling_factor: 3.0              # 与 inflation_layer 对齐
+        inflation_radius: 0.30                # 与局部膨胀层一致
+      GoalCritic:
+        enabled: true
+        cost_weight: 5.0
+        cost_power: 1
+        threshold_to_consider: 1.0
+      GoalAngleCritic:
+        enabled: true
+        cost_weight: 3.0
+        cost_power: 1
+        threshold_to_consider: 0.5
+      PathAlignCritic:
+        enabled: true
+        cost_weight: 14.0
+        cost_power: 1
+        max_path_occupancy_ratio: 0.05
+        use_path_orientations: false
+      PathFollowCritic:
+        enabled: true
+        cost_weight: 5.0
+        cost_power: 1
+        offset_from_furthest: 5
+        threshold_to_consider: 0.6
+      PathAngleCritic:
+        enabled: true
+        cost_weight: 2.0
+        cost_power: 1
+        offset_from_furthest: 4
+        threshold_to_consider: 0.5
+        max_angle_to_furthest: 1.0
+
+# ----------------------------------------------------------------
+# 全局规划器 — SmacPlanner2D (Cost-Aware A*)
+# ----------------------------------------------------------------
+planner_server:
+  ros__parameters:
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_smac_planner/SmacPlanner2D"
+      tolerance: 0.125                          # 目标容差 12.5cm
+      downsample_costmap: false                 # 不降采样，保持 5cm 精度
+      allow_unknown: false                      # 禁止穿越未知区域
+      max_iterations: 1000000                   # 足够大地图搜索
+      max_on_approach_iterations: 1000          # 接近目标时的最大迭代
+      max_planning_time: 2.0                    # 最长规划时间 2 秒
+      cost_travel_multiplier: 2.0               # 代价敏感度
+      use_final_approach_orientation: false      # 全向底盘不需要终点朝向约束
+      smoother:
+        max_iterations: 1000
+        tolerance: 1.0e-10
+        do_refinement: true                     # 路径平滑优化
+        refinement_num: 2
+
+# ----------------------------------------------------------------
+# 恢复行为服务器
+# ----------------------------------------------------------------
+behavior_server:
+  ros__parameters:
+    local_costmap_topic: local_costmap/costmap_raw
+    global_costmap_topic: global_costmap/costmap_raw
+    local_footprint_topic: local_costmap/published_footprint
+    global_footprint_topic: global_costmap/published_footprint
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "wait"]
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+    local_frame: odom
+    global_frame: map
+    robot_base_frame: base_link
+    transform_tolerance: 2.5
+    simulate_ahead_time: 2.0
+    max_rotational_vel: 0.2
+    min_rotational_vel: 0.05
+    rotational_acc_lim: 0.5
+
+# ----------------------------------------------------------------
+# 速度平滑器
+# ----------------------------------------------------------------
+velocity_smoother:
+  ros__parameters:
+    smoothing_frequency: 20.0
+    scale_velocities: false
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.2, 0.2, 0.2]            # [vx, vy, wz]
+    min_velocity: [-0.2, -0.2, -0.2]
+    max_accel: [0.5, 0.5, 1.0]               # 加速度限制
+    max_decel: [-0.5, -0.5, -1.0]            # 减速度限制
+    odom_topic: "odom"
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+
+# ----------------------------------------------------------------
+# 局部代价地图 — 实时 3D 点云避障
+# ----------------------------------------------------------------
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 5.0
+      publish_frequency: 4.0
+      always_send_full_costmap: true
+      global_frame: odom
+      robot_base_frame: base_link
+      transform_tolerance: 2.5                # 允许 TF 延迟 2.5s（hdl 高负载时可达 1s）
+      rolling_window: true
+      width: 5                                # 5m x 5m 滚动窗口
+      height: 5
+      resolution: 0.05
+      # 矩形碰撞轮廓 (车身 73cm x 50cm)
+      footprint: "[[0.365, 0.25], [0.365, -0.25], [-0.365, -0.25], [-0.365, 0.25]]"
+      plugins: ["voxel_layer", "denoise_layer", "semantic_detection_layer", "inflation_layer"]
+
+      # SpatioTemporalVoxelLayer — 带时间衰减的 3D 体素层，替代 VoxelLayer
+      voxel_layer:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled: true
+        voxel_decay: 2.0                       # 体素 2 秒后自动衰减清除
+        decay_model: 0                          # 0=线性衰减, 1=指数衰减
+        voxel_size: 0.08                        # 体素大小 8cm（降低近墙密度）
+        track_unknown_space: true
+        mark_threshold: 6                       # 至少 6 次命中才标记，过滤近墙噪点
+        update_footprint_enabled: true
+        combination_method: 1                   # 1=Maximum (取最大值)
+        origin_z: 0.0
+        publish_voxel_map: false                # 关闭可视化节省 CPU
+        observation_sources: unilidar_cloud d435i_cloud
+        unilidar_cloud:
+          topic: /unilidar/cloud
+          data_type: PointCloud2
+          sensor_frame: unilidar_lidar
+          marking: true
+          clearing: true
+          max_obstacle_height: 0.8
+          min_obstacle_height: 0.05
+          obstacle_range: 5.0
+          raytrace_range: 6.0
+        d435i_cloud:
+          topic: /camera/camera/depth/color/points
+          data_type: PointCloud2
+          sensor_frame: camera_color_optical_frame  # align_depth 后点云对齐到 color 帧
+          marking: true
+          clearing: false                        # 不清除 LiDAR 标记，省 CPU
+          model_type: 0                          # 0=深度相机矩形视锥体
+          vertical_fov_angle: 1.01               # D435i 垂直 FOV 58°
+          horizontal_fov_angle: 1.52             # D435i 水平 FOV 87°
+          min_obstacle_height: -0.27          # 同步全局定参              # 抓地面线缆（2cm 起）
+          max_obstacle_height: 0.28           # 保持55cm跨度               # 过滤高于车身的物体
+          obstacle_range: 2.0                    # D435i 可靠深度 ≤2m
+          raytrace_range: 2.5
+
+      # 语义检测层
+      semantic_detection_layer:
+        plugin: "wl100_semantic_costmap::SemanticDetectionLayer"
+        enabled: true
+        detection_topic: "/yolo/detections"
+        decay_time: 30.0              # 障碍物保持时间(s), 防止近距离深度盲区导致清除
+        min_confidence: 0.40
+        max_detection_range: 3.5
+        transform_tolerance: 0.3
+        vlm_tau_base: 20.0            # VLM 衰减基础时间常数(s)，越大衰减越慢
+        tau_beta: 0.5                 # 自适应 τ 调节系数: τ_eff = τ_base/(1+β·N_dynamic)
+        tau_min: 0.8
+        tau_max: 20.0
+        psi_min: -6.0
+        psi_max: 6.0
+        gamma: 1.0
+        log_lr_pos: 0.8
+        log_lr_neg: 1.5
+        yolo_stale_timeout: 1.0
+        distance_consistency_scale: 0.8
+        conf_min: 0.4
+
+      # 去噪层（清除孤立噪点，必须在 inflation 之前）
+      denoise_layer:
+        plugin: "nav2_costmap_2d::DenoiseLayer"
+        enabled: true
+        minimal_group_size: 2                    # 孤立单格清除
+        group_connectivity_type: 8               # 8 邻域连通
+
+      # 膨胀层（必须在最后）
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0                  # 膨胀衰减更陡，近墙可通行
+        inflation_radius: 0.30                   # 缩小膨胀（仍 > inscribed 0.25m）
+
+# ----------------------------------------------------------------
+# 全局代价地图 — 静态栅格地图
+# ----------------------------------------------------------------
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 5.0
+      publish_frequency: 4.0
+      global_frame: map
+      robot_base_frame: base_link
+      transform_tolerance: 2.5                # 允许 TF 延迟 2.5s
+      footprint: "[[0.365, 0.25], [0.365, -0.25], [-0.365, -0.25], [-0.365, 0.25]]"
+      resolution: 0.05
+      track_unknown_space: true
+      plugins: ["static_layer", "voxel_layer", "semantic_detection_layer", "inflation_layer"]
+
+      # 静态层 — 加载 2D 栅格地图
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: true
+
+      # 深度相机与雷达体素层 (从局部代价地图同步，2秒消退)
+      voxel_layer:
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"
+        enabled: true
+        voxel_decay: 2.0
+        decay_model: 0
+        voxel_size: 0.08
+        track_unknown_space: true
+        mark_threshold: 6
+        update_footprint_enabled: true
+        combination_method: 1
+        origin_z: 0.0
+        publish_voxel_map: false
+        observation_sources: unilidar_cloud d435i_cloud
+        unilidar_cloud:
+          topic: /unilidar/cloud
+          data_type: PointCloud2
+          sensor_frame: unilidar_lidar
+          marking: true
+          clearing: true
+          max_obstacle_height: 0.8
+          min_obstacle_height: 0.05
+          obstacle_range: 5.0
+          raytrace_range: 6.0
+
+
+        d435i_cloud:
+          topic: /camera/camera/depth/color/points
+          data_type: PointCloud2
+          sensor_frame: camera_color_optical_frame
+          marking: true
+          clearing: false
+          model_type: 0
+          vertical_fov_angle: 1.01
+          horizontal_fov_angle: 1.52
+          min_obstacle_height: -0.27          # 最终定参：精确贴合测试边界
+          max_obstacle_height: 0.28           # 保持55cm跨度：-0.27 + 0.55 = 0.28
+          obstacle_range: 2.0
+          raytrace_range: 2.5
+      # 语义检测层 — YOLO 检测的动态障碍物
+
+      semantic_detection_layer:
+        plugin: "wl100_semantic_costmap::SemanticDetectionLayer"
+        enabled: true
+        detection_topic: "/yolo/detections"
+        decay_time: 30.0
+        min_confidence: 0.40
+        max_detection_range: 3.5
+        transform_tolerance: 0.3
+        vlm_tau_base: 20.0            # VLM 衰减基础时间常数(s)
+        tau_beta: 0.5                 # 自适应 τ 调节系数: τ_eff = τ_base/(1+β·N_dynamic)
+        tau_min: 0.8
+        tau_max: 20.0
+        psi_min: -6.0
+        psi_max: 6.0
+        gamma: 1.0
+        log_lr_pos: 0.8
+        log_lr_neg: 1.5
+        yolo_stale_timeout: 1.0
+        distance_consistency_scale: 0.8
+        conf_min: 0.4
+
+      # 膨胀层 — 为 SmacPlanner2D 制造"山谷型"代价场
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 3.0              # 陡峭衰减，让规划器强烈避开墙壁附近
+        inflation_radius: 0.55               # 比车身半宽0.365多出~20cm安全距离
+
+# ----------------------------------------------------------------
+# 地图服务器
+# ----------------------------------------------------------------
+map_server:
+  ros__parameters:
+    yaml_filename: "/home/nvidia/robot_ws/maps/wl100_map.yaml"

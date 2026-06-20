@@ -1,0 +1,25 @@
+# WL100 Localizer 配置
+# 订阅 fastlio2 的 body_cloud 和 lio_odom 话题
+# 发布 map -> camera_init 的 TF
+
+cloud_topic: /fastlio2/body_cloud
+odom_topic: /fastlio2/lio_odom
+map_frame: map
+local_frame: odom
+update_hz: 5.0
+enable_continuous_icp_tf_update: false
+
+# 粗匹配（快速收敛到大致位置）
+rough_scan_resolution: 0.5
+rough_map_resolution: 0.5
+rough_max_iteration: 5
+rough_score_thresh: 0.3
+rough_max_correspondence_distance: 1.5
+
+# 细匹配（精确对齐）
+refine_scan_resolution: 0.1
+refine_map_resolution: 0.1
+refine_max_iteration: 15
+refine_score_thresh: 0.15
+refine_max_correspondence_distance: 0.15
+trimmed_overlap_ratio: 0.90

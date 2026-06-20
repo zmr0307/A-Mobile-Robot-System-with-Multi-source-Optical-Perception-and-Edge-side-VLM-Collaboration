@@ -1,0 +1,17 @@
+# Overlay parameters for wl100_clearance_planner.
+# Use with the baseline navigation params as the first params file.
+planner_server:
+  ros__parameters:
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "wl100_clearance_planner/ClearanceAStarPlanner"
+      hard_clearance_m: 0.25
+      preferred_clearance_m: 0.45
+      clearance_weight: 12.0
+      costmap_weight: 3.0
+      lethal_cost_threshold: 253
+      unknown_is_obstacle: true
+      goal_search_radius_m: 0.50
+      max_iterations: 1000000
+      shortcut_path: false
+      resample_step_m: 0.05

@@ -1,0 +1,10 @@
+<library path="wl100_semantic_costmap">
+  <class name="wl100_semantic_costmap::SemanticDetectionLayer"
+         type="wl100_semantic_costmap::SemanticDetectionLayer"
+         base_class_type="nav2_costmap_2d::Layer">
+    <description>
+      将 YOLOE-26 检测结果按类别差异化投影到 Nav2 代价地图。
+      支持 18 类室内物体，按类别设置不同代价值，自动时序衰减。
+    </description>
+  </class>
+</library>

@@ -1,0 +1,34 @@
+/tts:
+  ros__parameters:
+    voice: "zh-CN-XiaoyiNeural"       # 卡通活泼女声
+    rate: "+30%"                       # 语速快（+30%）
+    volume: "+0%"                      # 音量不变
+    max_queue: 5                       # 最多排队 5 条，超过丢弃最旧的
+    play_command: "ffplay -nodisp -autoexit"
+    tts_timeout: 60.0                  # edge-tts 合成超时（秒）
+    max_text_len: 500                  # 超过此长度截断
+
+    # 订阅话题
+    nl_reply_topic: "/demo/nl_reply"
+    director_status_topic: "/demo/director_status"
+    narration_result_topic: "/demo/narration_result"
+    cancel_topic: "/demo/cancel"
+    done_topic: "/demo/tts/done"
+
+    # 要播的 director step 事件
+    broadcast_steps:
+      - "approaching"
+      - "wait_handover"
+      - "handover_ok"
+      - "handover_timeout"
+      - "handover_settle"
+      - "handover_skip"
+      - "no_person_skip"
+      - "rotate_search"
+      - "semantic_search"
+      - "semantic_verify"
+      - "semantic_matched"
+      - "semantic_not_found"
+
+    # 归位完成时特殊播报
+    announce_home_done: true

@@ -1,0 +1,17 @@
+# WL100 巡检报告生成节点参数
+
+mission_logger:
+  ros__parameters:
+    # ── 输入话题 ──
+    narration_topic: "/demo/narration_result"        # VLM 解说结果
+    nav_status_topic: "/navigate_to_pose/_action/status"  # Nav2 任务状态
+    odom_topic: "/odom"                              # 里程计（用于累计距离）
+    mission_start_topic: "/demo/mission_start"       # 启动会话
+    mission_end_topic: "/demo/mission_end"           # 结束会话并生成报告
+    waypoints_yaml: "/home/nvidia/robot_ws/src/wl100_demo/config/waypoints.yaml"
+
+    # ── 输出 ──
+    output_root: "/home/nvidia/robot_ws/logs"
+
+    # ── 启动时是否自动开始一次会话 ──
+    auto_start_on_launch: true
